@@ -1,6 +1,9 @@
+#include <time.h>
 #include <cv.h>
 #include <highgui.h>
 #include "opencv2/contrib/contrib.hpp"
+// use parse_params code I wrote forever ago
+#include "parse_params.h"
 
 using namespace cv;
 
@@ -55,15 +58,48 @@ void depth_estimate_opencv (Mat *img1, Mat *img2, Mat *res)
 
 int main( int argc, char** argv )
 {
+	clock_t starttime, endtime;
+	tag t[3];
+	char fname_right[256], fname_left[256];
+	int method, returnval;
+
 	Mat img1_c, img2_c;
 	Mat img1_g, img2_g;
 	Mat result;
+
+	// default values:
+	method = 0;
+	strcpy(fname_right, "images/RIGHTEYE_sm.JPG");
+	strcpy(fname_left, "images/LEFTEYE_sm.JPG");
+
+	/* parse command-line arguments */
+	t[0].name = "-r";
+	t[0].type = TAGTYPE_STRING;
+	t[0].data = fname_right;
+	t[1].name = "-l";
+	t[1].type = TAGTYPE_STRING;
+	t[1].data = fname_left;
+	t[2].name = "-m"; // method
+	t[2].type = TAGTYPE_INT;
+	t[2].data = &method;
+	returnval = parse_params(argc, argv, 3, t);
 	
 	// read in color images
-	img1_c = imread( "RIGHTEYE_sm.JPG", 1 );
-	img2_c = imread( "LEFTEYE_sm.JPG", 1 );
+	printf("Opening %s\n", fname_right);
+	img1_c = imread(fname_right, 1 );
+	printf("Right image dimensions: %d by %d\n", img1_c.rows, img1_c.cols);
 
-	printf("Image dimensions: %d by %d\n", img1_c.rows, img1_c.cols);
+	printf("Opening %s\n", fname_left);
+	img2_c = imread(fname_left, 1 );
+	printf("Left image dimensions: %d by %d\n", img2_c.rows, img2_c.cols);
+
+	// make sure images are the same size
+	if (img1_c.rows != img2_c.rows || img1_c.cols != img2_c.cols)
+	{
+		printf("ERROR: images must be the same size!\n");
+		return -1;
+	}
+
 /*
 	Mat test = imread("test.bmp", 1);
 	printf("%d %d\n", test.rows, test.cols);
@@ -88,10 +124,21 @@ int main( int argc, char** argv )
 	result.setTo(0);
 
 	// compute depth
-	printf("Computing depth.. ");
+	printf("Computing depth using method %d.. ", method);
 	fflush(stdout);
-	depth_estimate_opencv(&img1_g, &img2_g, &result);
+	starttime = clock();
+	switch (method)
+	{
+		case 0: // opencv
+			depth_estimate_opencv(&img1_g, &img2_g, &result);
+			break;
+		case 1: // ?
+			break;
+	}
+	endtime = clock();
 	printf("Done.\n");
+	printf("Compute time: %fs\n", ((float)(endtime - starttime))/CLOCKS_PER_SEC);
+	printf("  FPS Estimate: %f\n", ((float)CLOCKS_PER_SEC)/(endtime-starttime));
 
 	// display result on screen
 	namedWindow( "RESULT", CV_WINDOW_AUTOSIZE );
